@@ -1,2 +1,2 @@
-# GazeDetectedKeyboard
- Gaze Detected Keyboard for ALS patients 
+# GazeControlledKeyboard
+ Gaze Controlled Keyboard for ALS patients 
