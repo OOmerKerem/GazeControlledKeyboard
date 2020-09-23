@@ -24,6 +24,37 @@ def blinking_ratio(eye_points, face_landmarks):
 
     return ratio
 
+def eye_area (eye_points, face_landmarks):
+
+    eye_region = np.array([(face_landmarks.part(eye_points[0]).x, face_landmarks.part(eye_points[0]).y),
+                                 (face_landmarks.part(eye_points[1]).x, face_landmarks.part(eye_points[1]).y),
+                                 (face_landmarks.part(eye_points[2]).x, face_landmarks.part(eye_points[2]).y),
+                                 (face_landmarks.part(eye_points[3]).x, face_landmarks.part(eye_points[3]).y),
+                                 (face_landmarks.part(eye_points[4]).x, face_landmarks.part(eye_points[4]).y),
+                                 (face_landmarks.part(eye_points[5]).x, face_landmarks.part(eye_points[5]).y)], np.int32)
+
+    height, width, _ = frame.shape
+    mask = np.zeros((height, width), np.uint8)
+    cv2.polylines(mask, [eye_region], True, 255, 2)
+    cv2.fillPoly(mask, [eye_region], 255)
+    eye = cv2.bitwise_and(gray, gray, mask=mask)
+    cv2.imshow("Binary Eye", eye)
+
+    min_x = np.min(eye_region[:, 0])
+    max_x = np.max(eye_region[:, 0])
+    min_y = np.min(eye_region[:, 1])
+    max_y = np.max(eye_region[:, 1])
+
+    gray_eye = eye[min_y:max_y , min_x:max_x]
+    _, thresholded_eye = cv2.threshold(gray_eye, 70, 255, cv2.THRESH_BINARY)
+
+    eye = cv2.resize(gray_eye, None, fx=5, fy=5)
+    thresholded_eye = cv2.resize(thresholded_eye, None, fx=5, fy=5)
+    cv2.imshow("Gray Eye", eye)
+    cv2.imshow("Eye", thresholded_eye)
+
+
+
 COUNTER = 0
 TOTAL = 0
 
@@ -33,9 +64,12 @@ cap = cv2.VideoCapture(0)
 
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+r_eye_region = [36, 37, 38, 39, 40, 41]
+l_eye_region = [42, 43, 44, 45, 46, 47]
 
 while True:
     ret, frame = cap.read()
+    gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
 
     faces = detector(frame)
     for face in faces:
@@ -45,32 +79,11 @@ while True:
 
         landmarks = predictor(frame, face)
 
-        r_blink_ratio = blinking_ratio([36, 37, 38, 39, 40, 41], landmarks)
-        l_blink_ratio = blinking_ratio([42, 43, 44, 45, 46, 47], landmarks)
+        r_blink_ratio = blinking_ratio(r_eye_region, landmarks)
+        l_blink_ratio = blinking_ratio(l_eye_region, landmarks)
         avg_blink_ratio = (l_blink_ratio + r_blink_ratio) / 2.0
-        #print(avg_blink_ratio)
 
-
-        right_eye_region = np.array([(landmarks.part(36).x, landmarks.part(36).y),
-                                    (landmarks.part(37).x, landmarks.part(37).y),
-                                    (landmarks.part(38).x, landmarks.part(38).y),
-                                    (landmarks.part(39).x, landmarks.part(39).y),
-                                    (landmarks.part(40).x, landmarks.part(40).y),
-                                    (landmarks.part(41).x, landmarks.part(41).y)], np.int32)
-
-        min_x = np.min(right_eye_region[:, 0])
-        max_x = np.max(right_eye_region[:, 0])
-        min_y = np.min(right_eye_region[:, 1])
-        max_y = np.max(right_eye_region[:, 1])
-
-        right_eye = frame[min_y:max_y , min_x:max_x]
-        right_eye = cv2.resize(right_eye , None, fx=5, fy=5)
-        gray_right_eye = cv2.cvtColor(right_eye, cv2.COLOR_BGR2GRAY)
-        #equ_right_eye =cv2.equalizeHist(gray_right_eye)
-        #print(equ_right_eye)
-        _, thresholded_right_eye = cv2.threshold(gray_right_eye, 37, 255, cv2.THRESH_BINARY)
-        cv2.imshow("Gray Right Eye", gray_right_eye)
-        cv2.imshow("Right Eye", thresholded_right_eye)
+        eye_area(r_eye_region, landmarks)
 
         if (avg_blink_ratio<0.2):
             COUNTER += 1
@@ -82,7 +95,6 @@ while True:
             COUNTER = 0
 
         cv2.putText(frame, "Blinks: {}".format(TOTAL), (10, 30), font, 3, (0, 255, 0), 2)
-
 
     cv2.imshow("Ekran", frame)
 
