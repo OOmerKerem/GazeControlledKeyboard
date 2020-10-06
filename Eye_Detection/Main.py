@@ -25,7 +25,7 @@ def blinking_ratio(eye_points, face_landmarks):
     return ratio
 
 
-def gaze_direction(eye_points, face_landmarks):
+def gaze_ratio(eye_points, face_landmarks):
     eye_region = np.array([(face_landmarks.part(eye_points[0]).x, face_landmarks.part(eye_points[0]).y),
                            (face_landmarks.part(eye_points[1]).x, face_landmarks.part(eye_points[1]).y),
                            (face_landmarks.part(eye_points[2]).x, face_landmarks.part(eye_points[2]).y),
@@ -47,17 +47,20 @@ def gaze_direction(eye_points, face_landmarks):
     gray_eye = eye[min_y:max_y, min_x:max_x]
     _, thresholded_eye = cv2.threshold(gray_eye, 53, 255, cv2.THRESH_BINARY)
     thresholded_eye = cv2.resize(thresholded_eye, None, fx=5, fy=5)
-    cv2.imshow("Eye", thresholded_eye)
 
     eye_height, eye_width= thresholded_eye.shape
-    left_side_eye = thresholded_eye[0:height, 0:int(width/2)]
-    right_side_eye = thresholded_eye[0:height, int(width/2):width]
+    left_side_eye = thresholded_eye[0:eye_height, 0:int(eye_width/2)]
+    right_side_eye = thresholded_eye[0:eye_height, int(eye_width/2):eye_width]
 
-    size = np.size(thresholded_eye)
-    white = np.count_nonzero(thresholded_eye)
+    left_white = cv2.countNonZero(left_side_eye)
+    right_white = cv2.countNonZero(right_side_eye)
 
-    print("white : ", eye_height)
-    print("size : ", eye_width)
+    if left_white==0:
+        gaze_ratio = 5
+    else:
+        gaze_ratio = right_white / left_white
+
+    return gaze_ratio
 
 
 COUNTER = 0
@@ -88,9 +91,7 @@ while True:
         l_blink_ratio = blinking_ratio(l_eye_region, landmarks)
         avg_blink_ratio = (l_blink_ratio + r_blink_ratio) / 2.0
 
-        gaze_direction(r_eye_region, landmarks)
-
-        if (avg_blink_ratio < 0.2):
+        if (avg_blink_ratio < 0.18):
             COUNTER += 1
 
         else:
@@ -100,6 +101,20 @@ while True:
             COUNTER = 0
 
         cv2.putText(frame, "Blinks: {}".format(TOTAL), (10, 30), font, 3, (0, 255, 0), 2)
+
+
+        r_gaze_ratio = gaze_ratio(r_eye_region, landmarks)
+        l_gaze_ratio = gaze_ratio(l_eye_region, landmarks)
+        avg_gaze_ratio = (l_gaze_ratio + r_gaze_ratio) / 2.0
+
+        if avg_gaze_ratio < 0.5:
+            cv2.putText(frame, "Gaze: Left", (10, 70), font, 3, (0, 255, 0), 2)
+        elif avg_gaze_ratio > 2.0:
+            cv2.putText(frame, "Gaze: Right", (10, 70), font, 3, (0, 255, 0), 2)
+
+
+        print("gaze_ratio : ", avg_gaze_ratio)
+
 
     cv2.imshow("Ekran", frame)
 
